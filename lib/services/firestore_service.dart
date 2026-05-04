@@ -61,13 +61,39 @@ class FirestoreService {
     return UserModel.fromMap(data);
   }
 
-  Future<List<UserModel>> getUsersByIds(List<String> uids) async {
+  Future<List<UserModel>> getUsersByIds(
+    List<String> uids, {
+    bool resetChildUsage = false,
+  }) async {
     if (uids.isEmpty) {
       return [];
     }
 
+    if (resetChildUsage) {
+      await Future.wait(uids.map(resetChildUsageIfNewDay));
+    }
+
     final users = await Future.wait(uids.map(getUser));
     return users.whereType<UserModel>().toList();
+  }
+
+  Stream<List<UserModel>> streamChildrenForFamily(String familyId) {
+    if (familyId.isEmpty) {
+      return Stream<List<UserModel>>.value(const []);
+    }
+
+    return _firestore
+        .collection(usersCollection)
+        .where('familyId', isEqualTo: familyId)
+        .where('role', isEqualTo: 'child')
+        .snapshots()
+        .asyncMap((snapshot) async {
+      final childUids = snapshot.docs.map((doc) => doc.id).toList();
+      await Future.wait(childUids.map(resetChildUsageIfNewDay));
+
+      final users = await Future.wait(childUids.map(getUser));
+      return users.whereType<UserModel>().toList();
+    });
   }
 
   Future<ChildUsageModel?> getChildUsage(String uid) async {

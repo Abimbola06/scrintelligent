@@ -1,0 +1,12 @@
+This project uses Firebase Authentication and Cloud Firestore.
+
+Firebase services used:
+- Email/password authentication
+- Google Sign-In
+- Password reset
+- Cloud Firestore
+
+To run from source:
+1. Run flutter pub get
+2. Ensure Firebase project is configured
+3. Run flutter run

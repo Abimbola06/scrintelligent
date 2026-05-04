@@ -20,13 +20,25 @@ class ParentDashboardScreen extends StatefulWidget {
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   final _firestoreService = FirestoreService();
-  late final Future<_ParentDashboardData> _dashboardFuture;
+  late Future<_ParentDashboardData> _dashboardFuture;
 
   @override
   void initState() {
     super.initState();
+    _refreshDashboardData();
+  }
+
+  void _refreshDashboardData() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     _dashboardFuture = _loadDashboardData(uid);
+  }
+
+  Future<void> _reloadDashboardData() async {
+    if (!mounted) return;
+    setState(() {
+      _refreshDashboardData();
+    });
+    await _dashboardFuture;
   }
 
   Future<_ParentDashboardData> _loadDashboardData(String? uid) async {
@@ -40,7 +52,10 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     final family = await familyFuture;
     final children = family == null
         ? <UserModel>[]
-        : await _firestoreService.getUsersByIds(family.childUids);
+        : await _firestoreService.getUsersByIds(
+            family.childUids,
+            resetChildUsage: true,
+          );
 
     return _ParentDashboardData(
       parent: parent,
@@ -65,66 +80,91 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                     final isLoading =
                         snapshot.connectionState == ConnectionState.waiting;
 
-                    return Column(
-                      children: [
-                        _DashboardHeader(firstName: data.parentFirstName),
-                        Transform.translate(
-                          offset: const Offset(0, -42),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              children: [
-                                _FamilyCodeCard(
-                                  family: data.family,
-                                  isLoading: isLoading,
-                                ),
-                                const SizedBox(height: 14),
-                                _LinkedChildrenCard(
-                                  children: data.children,
-                                  childCount: data.childCount,
-                                  isLoading: isLoading,
-                                  onChildTap: (child) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            ChildUsageDetailScreen(
-                                          child: child,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 14),
-                                _TopCategoriesCard(
-                                  children: data.children,
-                                  isLoading: isLoading,
-                                ),
-                                const SizedBox(height: 14),
-                                _AiInsightCard(
-                                  isLoading: isLoading,
-                                  insight: data.aiInsight,
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const ParentInsightsScreen(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
+                    return StreamBuilder<List<UserModel>>(
+                      stream: data.family == null
+                          ? Stream<List<UserModel>>.value(data.children)
+                          : _firestoreService.streamChildrenForFamily(
+                              data.family!.familyId,
                             ),
-                          ),
-                        ),
-                      ],
+                      initialData: data.children,
+                      builder: (context, childrenSnapshot) {
+                        final liveData = data.copyWith(
+                          children: childrenSnapshot.data ?? data.children,
+                        );
+
+                        return Column(
+                          children: [
+                            _DashboardHeader(
+                              firstName: liveData.parentFirstName,
+                            ),
+                            Transform.translate(
+                              offset: const Offset(0, -42),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                child: Column(
+                                  children: [
+                                    _FamilyCodeCard(
+                                      family: liveData.family,
+                                      isLoading: isLoading,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _LinkedChildrenCard(
+                                      children: liveData.children,
+                                      childCount: liveData.childCount,
+                                      isLoading: isLoading,
+                                      onChildTap: (child) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                ChildUsageDetailScreen(
+                                              child: child,
+                                            ),
+                                          ),
+                                        ).then((_) {
+                                          if (!context.mounted) return;
+                                          _reloadDashboardData();
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _TopCategoriesCard(
+                                      children: liveData.children,
+                                      isLoading: isLoading,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _AiInsightCard(
+                                      isLoading: isLoading,
+                                      insight: liveData.aiInsight,
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const ParentInsightsScreen(),
+                                          ),
+                                        ).then((_) {
+                                          if (!context.mounted) return;
+                                          _reloadDashboardData();
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
               ),
             ),
-            const _DashboardBottomNav(),
+            _DashboardBottomNav(
+              onNeedsRefresh: _reloadDashboardData,
+            ),
           ],
         ),
       ),
@@ -143,6 +183,18 @@ class _ParentDashboardData {
   final FamilyModel? family;
   final List<UserModel> children;
 
+  _ParentDashboardData copyWith({
+    UserModel? parent,
+    FamilyModel? family,
+    List<UserModel>? children,
+  }) {
+    return _ParentDashboardData(
+      parent: parent ?? this.parent,
+      family: family ?? this.family,
+      children: children ?? this.children,
+    );
+  }
+
   String get parentFirstName {
     final firstName = parent?.firstName.trim() ?? '';
     if (firstName.isNotEmpty) {
@@ -154,7 +206,8 @@ class _ParentDashboardData {
     return displayFirstName.isEmpty ? "Parent" : displayFirstName;
   }
 
-  int get childCount => family?.childUids.length ?? children.length;
+  int get childCount =>
+      children.where((child) => child.role == 'child').length;
 
   _DashboardAiInsight get aiInsight {
     final childProfiles = children.where((child) => child.role == 'child');
@@ -1068,7 +1121,11 @@ class _RankedRuleEvent {
 }
 
 class _DashboardBottomNav extends StatelessWidget {
-  const _DashboardBottomNav();
+  const _DashboardBottomNav({
+    required this.onNeedsRefresh,
+  });
+
+  final Future<void> Function() onNeedsRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -1101,7 +1158,7 @@ class _DashboardBottomNav extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => const ParentChildrenScreen(),
                 ),
-              );
+              ).then((_) => onNeedsRefresh());
             },
           ),
           _BottomNavItem(
@@ -1113,7 +1170,7 @@ class _DashboardBottomNav extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => const ParentInsightsScreen(),
                 ),
-              );
+              ).then((_) => onNeedsRefresh());
             },
           ),
           _BottomNavItem(
@@ -1125,7 +1182,7 @@ class _DashboardBottomNav extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => const ParentSettingsScreen(),
                 ),
-              );
+              ).then((_) => onNeedsRefresh());
             },
           ),
         ],

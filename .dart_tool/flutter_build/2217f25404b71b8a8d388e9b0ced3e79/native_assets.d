@@ -1,0 +1,1 @@
+ C:\\Users\\favou\\source\\repos\\scrintelligent\\.dart_tool\\flutter_build\\2217f25404b71b8a8d388e9b0ced3e79\\native_assets.yaml: 

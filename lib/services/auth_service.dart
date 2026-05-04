@@ -9,6 +9,7 @@ import '../models/family_model.dart';
 import '../models/user_model.dart';
 import 'firestore_service.dart';
 
+/// Result class for Google sign-in operations.
 class GoogleSignInResult {
   const GoogleSignInResult({
     required this.message,
@@ -23,10 +24,12 @@ class GoogleSignInResult {
   final String? uid;
 }
 
+/// Service class for handling authentication operations using Firebase and Google Sign-In.
 class AuthService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn();
   static final FirestoreService _firestoreService = FirestoreService();
 
+  /// Signs up a user with email and password.
   static Future<String> signUpWithEmail(String email, String password) async {
     try {
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -46,6 +49,7 @@ class AuthService {
     }
   }
 
+  /// Signs up a parent user with email, password, and creates a family.
   static Future<String> signUpParentWithEmail({
     required String email,
     required String password,
@@ -127,6 +131,7 @@ class AuthService {
     );
   }
 
+  /// Signs up a child user with email, password, and joins an existing family.
   static Future<String> signUpChildWithEmail({
     required String email,
     required String password,
@@ -229,6 +234,7 @@ class AuthService {
     }
   }
 
+  /// Signs in a user with Google authentication.
   static Future<GoogleSignInResult> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -276,6 +282,7 @@ class AuthService {
     }
   }
 
+  /// Completes onboarding for a parent user after Google sign-in.
   static Future<String> completeGoogleParentOnboarding() async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -330,6 +337,7 @@ class AuthService {
     }
   }
 
+  /// Completes onboarding for a child user after Google sign-in.
   static Future<String> completeGoogleChildOnboarding({
     required String familyCode,
   }) async {
@@ -426,11 +434,13 @@ class AuthService {
     return await sendPasswordResetEmail(email);
   }
 
+  /// Signs out the current user from both Google and Firebase.
   static Future<void> signOut() async {
     await _googleSignIn.signOut();
     await FirebaseAuth.instance.signOut();
   }
 
+  /// Displays a snackbar with a message in the given context.
   static void showSnackBar(
     String message,
     BuildContext context, {

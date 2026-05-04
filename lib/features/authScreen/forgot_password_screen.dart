@@ -73,7 +73,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   const Icon(
                     Icons.lock_reset,
                     size: 72,
-                    color: Color.fromRGBO(99, 88, 215, 1),
+                    color: Color.fromARGB(255, 182, 57, 193),
                   ),
                   const SizedBox(height: 20),
                   const Text(
@@ -144,7 +144,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        backgroundColor: const Color.fromRGBO(99, 88, 215, 1),
+                        backgroundColor:
+                            const Color.fromARGB(255, 182, 57, 193),
                         foregroundColor: Colors.white,
                       ),
                       child: _isLoading

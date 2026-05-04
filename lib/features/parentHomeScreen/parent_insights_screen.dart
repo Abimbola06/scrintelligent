@@ -35,7 +35,10 @@ class _ParentInsightsScreenState extends State<ParentInsightsScreen> {
       return const _ParentInsightsData();
     }
 
-    final children = await _firestoreService.getUsersByIds(family.childUids);
+    final children = await _firestoreService.getUsersByIds(
+      family.childUids,
+      resetChildUsage: true,
+    );
     return _ParentInsightsData(
       family: family,
       children: children,

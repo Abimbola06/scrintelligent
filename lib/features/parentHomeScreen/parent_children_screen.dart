@@ -38,7 +38,10 @@ class _ParentChildrenScreenState extends State<ParentChildrenScreen> {
       return const _ParentChildrenData();
     }
 
-    final children = await _firestoreService.getUsersByIds(family.childUids);
+    final children = await _firestoreService.getUsersByIds(
+      family.childUids,
+      resetChildUsage: true,
+    );
     return _ParentChildrenData(
       family: family,
       children: children.where((child) => child.role == 'child').toList(),
